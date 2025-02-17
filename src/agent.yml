@@ -1,0 +1,10 @@
+agent:
+  name: "agent1"
+
+node:
+  - name: "node1"
+    ip: "127.0.0.1"
+    port: 7878
+    tags: 
+      - "default"
+      - "dev"
