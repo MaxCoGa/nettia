@@ -37,46 +37,7 @@ fn send_agent_name(stream: &mut TcpStream, agent_name: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn main() -> io::Result<()> {
-    // Read and parse the agent.yml file
-    let file = std::fs::File::open("agent.yml")?;
-    let config: AgentConfig = match serde_yaml::from_reader(file) {
-        Ok(config) => config,
-        Err(e) => {
-            eprintln!("Error parsing agent.yml: {}", e);
-            return Err(io::Error::new(io::ErrorKind::Other, "Failed to parse agent.yml"));
-        }
-    };
-    
-    let agent_name = &config.agent.name;
-    // Assuming you want to use the first node's details for connection
-    let first_node = config.node.get(0).ok_or_else(|| {
-        io::Error::new(io::ErrorKind::Other, "No nodes defined in agent.yml")
-    })?;
-    
-    let node_ip = &first_node.ip;
-    let node_port = first_node.port;
-    let node_address = SocketAddr::from((node_ip.parse::<std::net::IpAddr>().unwrap(), node_port));
-
-    
-    // Attempt to connect to the node with a timeout
-    let mut stream = match TcpStream::connect_timeout(
-        &node_address,
-        Duration::from_secs(5), )
-
-    {
-        Ok(stream) => stream,
-        Err(e) => {
-            eprintln!("Failed to connect to node {}: {}", node_address, e);
-            return Err(e);
-        }
-    };
-
-    // Send the agent's name to the node
-    send_agent_name(&mut stream, agent_name)?;
-
-    println!("Connected to node: {}", &node_address);
-
+fn send_command(stream: &mut TcpStream, agent_name: &str, always_connected: bool) -> io::Result<()> {
     // Create a BufReader for reading from the node
     let mut reader = BufReader::new(stream.try_clone()?);
 
@@ -143,5 +104,50 @@ fn main() -> io::Result<()> {
             }
         }
     }
+    Ok(())
+}
+
+fn main() -> io::Result<()> {
+    // Read and parse the agent.yml file
+    let file = std::fs::File::open("agent.yml")?;
+    let config: AgentConfig = match serde_yaml::from_reader(file) {
+        Ok(config) => config,
+        Err(e) => {
+            eprintln!("Error parsing agent.yml: {}", e);
+            return Err(io::Error::new(io::ErrorKind::Other, "Failed to parse agent.yml"));
+        }
+    };
+    
+    let agent_name = &config.agent.name;
+    // Assuming you want to use the first node's details for connection
+    let first_node = config.node.get(0).ok_or_else(|| {
+        io::Error::new(io::ErrorKind::Other, "No nodes defined in agent.yml")
+    })?;
+    
+    let node_ip = &first_node.ip;
+    let node_port = first_node.port;
+    let node_address = SocketAddr::from((node_ip.parse::<std::net::IpAddr>().unwrap(), node_port));
+
+    
+    // Attempt to connect to the node with a timeout
+    let mut stream = match TcpStream::connect_timeout(
+        &node_address,
+        Duration::from_secs(5), )
+
+    {
+        Ok(stream) => stream,
+        Err(e) => {
+            eprintln!("Failed to connect to node {}: {}", node_address, e);
+            return Err(e);
+        }
+    };
+
+    // Send the agent's name to the node
+    send_agent_name(&mut stream, agent_name)?;
+
+    println!("Connected to node: {}", &node_address);
+
+    send_command(&mut stream, agent_name, true)?;
+
     Ok(())
 }
